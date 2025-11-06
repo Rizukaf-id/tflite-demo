@@ -1,62 +1,51 @@
 ```markdown
 # Panduan Mudah Deploy TFLite untuk Android (untuk siswa SMK)
 
-Versi singkat: Ini panduan langkah demi langkah supaya proyek Androidmu yang pakai model .tflite bisa dibuild dan dijalankan di HP. Panduan ini dibuat karena contoh dari tensorflow/examples punya versi dependensi yang lama dan tidak cocok dengan Android Studio yang lebih baru.
+Tujuan: Biar proyek Androidmu yang pakai model .tflite bisa dibuild dan dijalankan di HP menggunakan Android Studio versi baru. Panduan ini dibuat karena contoh di tensorflow/examples pakai versi dependensi lama.
 
----
+--------------------------
+Ringkasan langkah singkat:
+1. Export model dari Teachable Machine (pilih TensorFlow Lite).
+2. Taruh model hasil export ke folder app/src/main/assets/.
+3. Perbarui dependency TFLite di app/build.gradle.
+4. Tambah kode untuk memuat model (contoh ada di bawah).
+5. Build dan install ke HP dengan `./gradlew assembleDebug` dan `adb install`.
 
-## 1. Hal yang harus disiapkan dulu
-- Android Studio (pakai versi terbaru yang kamu punya).
-- Java JDK (disarankan JDK 11).
-- Perangkat Android (HP) atau emulator.
-- File model `.tflite` (mis. `model.tflite`) — kalau belum ada, taruh di folder assets nanti.
-- Pastikan project kamu ada folder `app/` dengan `src/main/...`. Kalau belum ada, buat sesuai contoh di bawah.
+--------------------------
+1) Ekspor model dari Teachable Machine
+- Buka proyek di Teachable Machine.
+- Klik "Export" → pilih tab "TensorFlow Lite".
+- Pilih jenis konversi:
+  - Floating point: ukuran lebih besar, akurasi original.
+  - Quantized: ukuran kecil dan lebih cepat di HP (direkomendasikan untuk mobile).
+  - EdgeTPU: untuk Coral (biasanya bukan untuk HP biasa).
+- Klik "Download my model". Kamu akan mendapatkan file zip (mis. converted_tflite_quantized.zip atau converted_tflite.zip).
 
----
+Gambar yang dicontohkan di Teachable Machine:
+- Pilih TensorFlow Lite → pilih "Quantized" jika mau ukuran kecil → Download my model.
+(Ini sama seperti gambar yang kamu kirim.)
 
-## 2. Struktur project yang disarankan
-Buat struktur sederhana seperti ini:
-- / (root repo)
-  - gradlew
-  - gradlew.bat
-  - gradle/
-  - settings.gradle
-  - build.gradle (root)
-  - gradle.properties
-  - app/
-    - build.gradle
-    - src/
-      - main/
-        - java/...
-        - res/...
-        - assets/  <- taruh model.tflite di sini
+2) Buka hasil export dan salin file model ke proyek
+- Unzip file yang kamu download.
+- Biasanya di dalam folder ada:
+  - model.tflite
+  - labels.txt (atau files/labels.txt)
+  - metadata.json (opsional)
+- Cara paling mudah: copy `model.tflite` dan `labels.txt` ke:
+  `app/src/main/assets/`
+  Jika kamu lebih suka folder, bisa juga copy folder `converted_tflite` ke `app/src/main/assets/converted_tflite/` sehingga path model jadi `assets/converted_tflite/model.tflite`.
 
-Jika belum ada gradle wrapper (gradlew), buka Android Studio lalu pilih menu untuk "Sync Project" → Android Studio biasanya bisa menambahkan wrapper otomatis. Atau jalankan di mesin dengan Gradle: `gradle wrapper --gradle-version 7.5` (contoh).
+Catatan: Pastikan nama file pas dan huruf besar/kecil sama.
 
----
+3) Update dependency TensorFlow Lite (di app/build.gradle)
+Tambahkan dependency TFLite agar bisa pakai Interpreter:
+- Contoh:
+  implementation 'org.tensorflow:tensorflow-lite:2.11.0'
+- Jika mau GPU (opsional):
+  implementation 'org.tensorflow:tensorflow-lite-gpu:2.11.0'
 
-## 3. Memasukkan model (.tflite)
-Cara paling mudah:
-1. Buka folder `app/src/main/assets/`. Jika belum ada, buat folder `assets`.
-2. Salin `model.tflite` ke `app/src/main/assets/model.tflite`.
-
-Catatan: Nama file sensitif huruf besar/kecil — jangan salah tulis.
-
----
-
-## 4. Update dependency TensorFlow Lite
-Di `app/build.gradle` tambahkan baris ini di `dependencies`:
-```groovy
-implementation 'org.tensorflow:tensorflow-lite:2.11.0' // contoh versi, cek versi terbaru kalau perlu
-// Jika mau pakai GPU delegate:
-// implementation 'org.tensorflow:tensorflow-lite-gpu:2.11.0'
-```
-Kalau ada error versi, ubah versi `org.tensorflow` ke versi yang cocok dengan repository Maven (cek di https://mvnrepository.com atau di dokumentasi TFLite).
-
----
-
-## 5. Contoh kode sederhana untuk memuat model (Kotlin)
-Masukkan kode berikut di Activity atau class Kotlin kamu:
+4) Contoh kode sederhana untuk memuat model (Kotlin)
+- Contoh fungsi untuk load model dari assets:
 ```kotlin
 import android.content.res.AssetManager
 import org.tensorflow.lite.Interpreter
@@ -71,77 +60,64 @@ fun loadModelFile(assetManager: AssetManager, fileName: String): MappedByteBuffe
     return channel.map(FileChannel.MapMode.READ_ONLY, fd.startOffset, fd.declaredLength)
 }
 
-// Penggunaan:
-val modelBuffer = loadModelFile(context.assets, "model.tflite")
+// Cara pakai:
+val modelBuffer = loadModelFile(context.assets, "model.tflite") // atau "converted_tflite/model.tflite"
 val tflite = Interpreter(modelBuffer)
 ```
-Penjelasan gampang:
-- `assets` = tempat file model dimasukkan ke aplikasi.
-- `Interpreter` = alat untuk menjalankan model dan mendapat hasil prediksi.
 
----
+5) Jika kamu pakai kode dari contoh Teachable Machine (modifikasi getModelPath/getLabelPath)
+- Di beberapa contoh, kamu perlu ubah fungsi getModelPath() dan getLabelPath() supaya menunjuk ke nama file yang benar (mis. "model.tflite" dan "labels.txt") atau ke folder "converted_tflite/model.tflite".
+- Contoh:
+    - getModelPath() -> return "model.tflite"
+    - getLabelPath() -> return "labels.txt"
 
-## 6. Build dan install ke HP
-Buka terminal di folder root (tempat `gradlew` berada), jalankan:
-- Build debug:
-```
-./gradlew assembleDebug
-```
-- Install ke HP (HP harus aktif USB Debugging dan terhubung):
-```
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
+6) Build & install ke HP
+- Di terminal (folder root project, tempat gradlew):
+    - Build debug:
+      ./gradlew assembleDebug
+    - Install ke HP (HP harus terhubung, USB Debugging ON):
+      adb install -r app/build/outputs/apk/debug/app-debug.apk
+- Atau klik Run di Android Studio langsung.
 
-Jika Android Studio yang kamu pakai bisa langsung run, klik Run → pilih device.
+7) Masalah versi Gradle / Android Gradle Plugin (AGP)
+- Jika Android Studio kamu lebih baru, kamu mungkin perlu:
+    - Update Gradle wrapper ke versi yang cocok.
+    - Update plugin Android Gradle (di root build.gradle) supaya sesuai dengan Gradle wrapper.
+- Contoh pairing (cek error message kalau perlu):
+    - AGP 7.4 → Gradle 7.5
+    - AGP 8.x → Gradle 8.x
+- Cara mudah: biarkan Android Studio melakukan "Sync" dan ikuti saran update yang muncul, atau jalankan:
+  gradle wrapper --gradle-version 7.5
+  (Jalankan ini hanya kalau punya Gradle di komputer.)
 
----
-
-## 7. Kalau ada masalah karena versi Gradle / Android Gradle Plugin
-Masalah yang sering muncul:
-- Contoh tensorflow menggunakan versi AGP (Android Gradle Plugin) lama. Kalau Android Studio kamu lebih baru, update `build.gradle` root agar AGP cocok.
-  Contoh pairing umum:
-- AGP 7.4.x → Gradle 7.5
-- AGP 8.x → Gradle 8.x
-  (Aturan detail berubah, jadi terbaik cek pesan error Gradle dan ikuti saran upgrade.)
-
-Untuk mengubah gradle wrapper:
-```
-# jika punya gradle terinstall lokal:
-gradle wrapper --gradle-version 7.5
-```
-Atau biarkan Android Studio menanyakan update wrapper saat sync.
-
----
-
-## 8. Rules ProGuard (kalau pakai minify / release)
-Tambahkan ke `proguard-rules.pro` supaya library TFLite tidak terhapus:
+8) ProGuard (kalau pakai minify)
+   Tambahkan ini di proguard-rules.pro:
 ```
 -keep class org.tensorflow.** { *; }
 -keep class org.tensorflow.lite.** { *; }
 ```
 
----
+9) Troubleshooting mudah (cek kalau error)
+- Error "model not found": cek lagi `app/src/main/assets/` apakah file ada.
+- Nama file salah: periksa kapitalisasi.
+- Error runtime: buka Logcat di Android Studio untuk pesan detail.
+- Model terlalu besar / lambat: coba export quantized dari Teachable Machine lalu tes lagi.
 
-## 9. Periksa kalau model tidak ditemukan saat runtime
-1. Pastikan `model.tflite` benar-benar ada di `assets` dalam APK (kamu bisa unzip file APK).
-2. Lihat Logcat di Android Studio untuk pesan error.
-3. Periksa nama file dan path `assets/model.tflite`.
+10) Opsi otomatis (jika kamu pakai download_models.gradle)
+- Pastikan task itu menaruh `model.tflite` ke `app/src/main/assets/` sebelum assemble. Kalau tidak, assemble tidak memasukkan model ke APK.
 
----
+--------------------------
+Cheat-sheet cepat:
+1. Export dari Teachable Machine → pilih TensorFlow Lite (quantized rekomendasi).
+2. Unzip, copy model.tflite & labels.txt ke app/src/main/assets/.
+3. Update dependency TFLite di app/build.gradle.
+4. Build `./gradlew assembleDebug`.
+5. Install `adb install -r app/build/outputs/apk/debug/app-debug.apk`.
+6. Cek Logcat kalau ada error.
 
-## 10. Optimasi sederhana agar aplikasi cepat
-- Kuantisasi model (8-bit) untuk mengecilkan ukuran dan mempercepat inferensi.
-- Jika butuh performa lebih tinggi, pakai GPU delegate (tapi periksa kompatibilitas HP).
-- Uji model di HP target — hasil bisa berbeda di perangkat berbeda.
-
----
-
-## 11. Cheat-sheet langkah cepat
-1. Pastikan `app/src/main/assets/model.tflite` ada.
-2. Tambah dependency TFLite di `app/build.gradle`.
-3. Tambah kode load model (lihat contoh).
-4. Jalankan `./gradlew assembleDebug`.
-5. Install ke HP: `adb install -r app/build/outputs/apk/debug/app-debug.apk`.
-6. Buka app, cek hasil prediksi.
-
----
+--------------------------
+Catatan tambahannya:
+- Pilih quantized kalau mau ukuran kecil dan performa lebih baik di HP.
+- Pastikan project punya `gradlew` dan `settings.gradle` supaya mudah build di CI atau komputer lain.
+- Kalau mau, minta guru bantu cek pairing versi Gradle/AGP jika Android Studio memunculkan error versi.
+```
