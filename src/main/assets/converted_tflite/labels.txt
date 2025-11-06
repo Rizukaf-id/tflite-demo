@@ -1,0 +1,7 @@
+0 cirriform clouds
+1 clear sky
+2 cumulonimbus clouds
+3 cumulus clouds
+4 high cumuliform clouds
+5 stratiform clouds
+6 stratocumulus clouds
