@@ -1,6 +1,8 @@
 ```markdown
 # Panduan Mudah Deploy TFLite untuk Android (untuk siswa SMK)
 
+![alt text](image.png)
+
 Tujuan: Biar proyek Androidmu yang pakai model .tflite bisa dibuild dan dijalankan di HP menggunakan Android Studio versi baru. Panduan ini dibuat karena contoh di tensorflow/examples pakai versi dependensi lama.
 
 --------------------------
